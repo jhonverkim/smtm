@@ -2,6 +2,8 @@
 
 import copy
 from datetime import datetime
+from datetime import timedelta
+from sklearn.linear_model import LinearRegression
 import math
 import pandas as pd
 import numpy as np
@@ -34,7 +36,8 @@ class StrategySma0(Strategy):
     NAME = "SMA0-I"
     STD_K = 25
     STD_RATIO = 0.00015
-    PREDICT_N = 3
+    PREDICT_N = 0
+    LR_COUNT = 25
 
     def __init__(self):
         self.is_intialized = False
@@ -85,6 +88,12 @@ class StrategySma0(Strategy):
         if self.add_spot_callback is not None:
             self.add_spot_callback(date_time, value)
 
+    def _get_linear_regression_model(self, price_list):
+        x = np.array(range(len(price_list))).reshape(-1, 1)
+        reg = LinearRegression().fit(x, price_list)
+        self.logger.debug(f"[ML2] coef_: {reg.coef_}, intercept_: {reg.intercept_}, score: {reg.score(x, price_list)}")
+        return reg
+
     def __update_process(self, info):
         try:
             current_price = info["closing_price"]
@@ -126,14 +135,22 @@ class StrategySma0(Strategy):
                         self.logger.debug(f"[SMA] SKIP BUY !!! === Stand deviation:{std_ratio:.6f}")
                         is_skip = True
 
-                self.__add_drawing_spot(info["date_time"], current_price)
+                    # linear regression
+                    linear_model = self._get_linear_regression_model(sma_long_list[-self.LR_COUNT:])
+
+                    ref_datetime = datetime.strptime(info["date_time"], self.ISO_DATEFORMAT)
+                    for i in range(self.LR_COUNT):
+                        dt = DateConverter.to_iso_string(ref_datetime - timedelta(minutes=self.LR_COUNT-i))
+                        self.__add_drawing_spot(dt, linear_model.predict([[i]]))
+
+                # self.__add_drawing_spot(info["date_time"], current_price)
             elif sma_short < sma_mid < sma_long and self.current_process != "sell":
                 self.current_process = "sell"
                 self.process_unit = (0, self.asset_amount / self.STEP)
                 self.logger.debug(
                     f"[SMA] Try to sell {sma_short} {sma_mid} {sma_long}, amout: {self.process_unit[1]}"
                 )
-                self.__add_drawing_spot(info["date_time"], current_price)
+                # self.__add_drawing_spot(info["date_time"], current_price)
             else:
                 return
             self.cross_info[0] = self.cross_info[1]

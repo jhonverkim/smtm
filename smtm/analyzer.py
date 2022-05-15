@@ -630,7 +630,7 @@ class Analyzer:
         if "spot" in total.columns:
             apds.append(
                 mpf.make_addplot(
-                    (total["spot"]), type="scatter", markersize=50, marker=".", color="g"
+                    (total["spot"]), markersize=50, marker=".", color="r"
                 )
             )
 
