@@ -136,11 +136,12 @@ class StrategySma0(Strategy):
                         is_skip = True
 
                     # linear regression
-                    linear_model = self._get_linear_regression_model(sma_long_list[-self.LR_COUNT:])
+                    regression_count = self.LR_COUNT if current_idx - self.LONG > self.LR_COUNT else current_idx - self.LONG
+                    linear_model = self._get_linear_regression_model(sma_long_list[-regression_count:])
 
                     ref_datetime = datetime.strptime(info["date_time"], self.ISO_DATEFORMAT)
-                    for i in range(self.LR_COUNT):
-                        dt = DateConverter.to_iso_string(ref_datetime - timedelta(minutes=self.LR_COUNT-i))
+                    for i in range(regression_count):
+                        dt = DateConverter.to_iso_string(ref_datetime - timedelta(minutes=regression_count-i))
                         self.__add_drawing_spot(dt, linear_model.predict([[i]]))
 
                 # self.__add_drawing_spot(info["date_time"], current_price)
